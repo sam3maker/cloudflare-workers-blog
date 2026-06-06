@@ -373,7 +373,7 @@
                         statusEl.textContent='上传成功!';
                         var url=resp.url;
                         var listEl=document.getElementById('cf-upload-list');
-                        listEl.innerHTML+='<div style="padding:5px 0;border-bottom:1px solid #eee;font-size:13px;"><strong>'+file.name+'</strong><br><code style="word-break:break-all;font-size:12px;">'+url+'</code><br><a href="javascript:void(0)" onclick="cfInsertMD(\'![ '+file.name+']('+url+')\')">插入为图片</a> | <a href="javascript:void(0)" onclick="cfInsertMD(\'['+file.name+']('+url+')\')">插入为链接</a> | <button onclick="navigator.clipboard.writeText(\''+url+'\');this.textContent=\'已复制\'" style="font-size:12px;">复制URL</button></div>';
+                        listEl.innerHTML+='<div style="padding:5px 0;border-bottom:1px solid #eee;font-size:13px;"><strong>'+file.name+'</strong><br><code style="word-break:break-all;font-size:12px;">'+url+'</code><br><a href="javascript:void(0)" onclick="cfInsertMD(\'![ '+file.name+']('+url+')\')">插入为图片</a> | <a href="javascript:void(0)" onclick="cfInsertMD(\'['+file.name+']('+url+')\')">插入为链接</a> | <button onclick="navigator.clipboard.writeText(\''+url+'\');this.textContent=\'已复制\'" style="font-size:12px;">复制URL</button> | <button onclick="cfDeleteAttachment('+resp.key.replace(/FILE_/,"")+',this.parentElement)" style="font-size:12px;color:red;border:none;background:none;cursor:pointer;">删除</button></div>';
                     }else{
                         statusEl.textContent='上传失败: '+(resp.msg||'未知错误');
                     }
@@ -385,6 +385,12 @@
         };
         xhr.onerror=function(){statusEl.textContent='上传失败';fileInput.value='';};
         xhr.send(fd);
+    }
+    function cfDeleteAttachment(fileId,el){
+        if(!confirm('确定删除此附件？'))return;
+        fetch('/admin/upload/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:fileId})}).then(function(r){return r.json()}).then(function(d){
+            if(d.ok===1){el.remove();}else{alert(d.msg||'删除失败');}
+        }).catch(function(){alert('删除失败');});
     }
     function cfInsertMD(text){
         var cm=document.querySelector('.CodeMirror');

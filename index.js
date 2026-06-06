@@ -283,7 +283,9 @@ addEventListener("fetch",t=>{t.respondWith(async function(t){
       const result=await tidbQuery("SELECT filename,content_type,data FROM uploads WHERE id=?",[String(fileId)]);
       if(!result.rows||result.rows.length===0) return new Response("Not Found",{status:404});
       const row=result.rows[0];
-      const bytes=new Uint8Array(row.data);
+      const hexStr=row.data;
+      const bytes=new Uint8Array(hexStr.length/2);
+      for(let j=0;j<hexStr.length;j+=2) bytes[j/2]=parseInt(hexStr.substr(j,2),16);
       const headers=new Headers();
       headers.set("Content-Type",row.content_type||"application/octet-stream");
       headers.set("Cache-Control","public, max-age=86400");
