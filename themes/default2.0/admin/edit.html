@@ -144,9 +144,29 @@
 		for (var i = 0; i < categoryJson.length; i++) {
 			category.append('<option id=' + categoryJson[i] + ' value=' + categoryJson[i] + '>' + categoryJson[i] + '</option>');
 		}
-		category.selectpicker('val',articleJson.category);
+category.selectpicker('val',articleJson.category);
 	});
-    //保存按钮(编辑)
+	function cfLoadAttachments(){
+		var aid=$('#id').val();
+		if(!aid)return;
+		fetch('/api/attachments/'+aid).then(function(r){return r.json()}).then(function(files){
+			if(!files||!files.length)return;
+			var listEl=document.getElementById('cf-upload-list');
+			files.forEach(function(f){
+				var div=document.createElement('div');
+				div.style.cssText='padding:5px 0;border-bottom:1px solid #eee;font-size:13px;display:flex;align-items:center;gap:8px;';
+				div.innerHTML='<strong>'+f.filename+'</strong><a href="'+f.url+'" download style="font-size:12px;color:#16a1e7;">下载</a><button onclick="cfDeleteAttachment('+f.id+',this.parentElement)" style="font-size:12px;color:red;border:none;background:none;cursor:pointer;">删除</button>';
+				listEl.appendChild(div);
+			});
+		});
+	}
+	function cfDeleteAttachment(fileId,el){
+		if(!confirm('确定删除此附件？'))return;
+		fetch('/admin/upload/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:fileId})}).then(function(r){return r.json()}).then(function(d){
+			if(d.ok===1){el.remove();}else{alert(d.msg||'删除失败');}
+		}).catch(function(){alert('删除失败');});
+	}
+	cfLoadAttachments();
     function saveEdit(){
         $.ajax({
             type: "POST",

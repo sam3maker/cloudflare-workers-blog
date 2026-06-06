@@ -60,6 +60,14 @@ async function tidbQuery(sql, args) {
     throw new Error('TiDB错误: ' + (err.message || resp.status));
   }
   const data = await resp.json();
+  if (data.types && data.rows) {
+    var fields = data.types.map(function(t) { return t.name; });
+    data.rows = data.rows.map(function(row) {
+      var obj = {};
+      fields.forEach(function(f, i) { obj[f] = row[i]; });
+      return obj;
+    });
+  }
   return data;
 }
 
@@ -305,6 +313,19 @@ addEventListener("fetch",t=>{t.respondWith(async function(t){
       const insertId=result.sLastInsertID||result.lastInsertId;
       const publicURL="/admin/file/FILE_"+insertId;
       return new Response(JSON.stringify({ok:1,url:publicURL,key:"FILE_"+insertId,name:file.name}),{headers:CORS_HEADERS,status:200});
+    }catch(err){
+      return new Response(JSON.stringify({ok:0,msg:err.message}),{headers:CORS_HEADERS,status:400});
+    }
+  }
+
+  // TiDB附件删除接口（已通过admin鉴权）
+  if(method==="POST" && path==="/admin/upload/delete"){
+    try{
+      const body=await e.json();
+      const fileId=body.id;
+      if(!fileId) throw new Error("缺少文件id");
+      await tidbQuery("DELETE FROM uploads WHERE id=?",[String(fileId)]);
+      return new Response(JSON.stringify({ok:1}),{headers:CORS_HEADERS,status:200});
     }catch(err){
       return new Response(JSON.stringify({ok:0,msg:err.message}),{headers:CORS_HEADERS,status:400});
     }
