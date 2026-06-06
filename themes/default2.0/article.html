@@ -155,7 +155,11 @@
 											<p id="cf-pwd-error" style="color:red;display:none;margin-top:10px;font-size:13px;"></p>
 										</div>
 									</div>
-									<footer class="entry-meta">
+									<div id="cf-attachments" style="display:none;margin-top:20px;padding:15px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa;">
+									<h4 style="margin:0 0 10px;font-size:15px;color:#333;">附件下载</h4>
+									<ul id="cf-attachment-list" style="list-style:none;padding:0;margin:0;"></ul>
+								</div>
+								<footer class="entry-meta">
 										<span>分类:
 											{{ #articleSingle.category }}
 												<a href="/category/{{&.}}" rel="category tag">{{&.}}</a>
@@ -286,6 +290,20 @@
 					document.getElementById('cf-article-pwd').addEventListener('keydown',function(e){
 						if(e.key==='Enter')cfVerifyPwd();
 					});
+					if(cfArticleId){
+						fetch('/api/attachments/'+cfArticleId).then(function(r){return r.json()}).then(function(files){
+							if(!files||!files.length)return;
+							var box=document.getElementById('cf-attachments');
+							var list=document.getElementById('cf-attachment-list');
+							box.style.display='block';
+							files.forEach(function(f){
+								var li=document.createElement('li');
+								li.style.cssText='padding:8px 0;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;';
+								li.innerHTML='<span style="font-size:14px;color:#333;">'+f.filename+'</span><a href="'+f.url+'" download style="padding:4px 12px;background:#16a1e7;color:#fff;text-decoration:none;border-radius:3px;font-size:13px;">下载</a>';
+								list.appendChild(li);
+							});
+						});
+					}
 				})();
 				</script>
 				<script>

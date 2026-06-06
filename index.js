@@ -28,6 +28,41 @@ const OPT = {
   "faviconURL": "https://blog.s3m-soft.cc.cd/favicon.ico"
 };
 
+// TiDB Cloud Serverless HTTP连接函数
+async function tidbQuery(sql, args) {
+  const TIDB_URL = typeof TIDB_DATABASE_URL !== 'undefined' ? TIDB_DATABASE_URL : '';
+  if (!TIDB_URL) throw new Error('TiDB未配置');
+  const urlObj = new URL(TIDB_URL.replace('mysql://','http://'));
+  const host = urlObj.hostname;
+  const username = decodeURIComponent(urlObj.username);
+  const password = decodeURIComponent(urlObj.password);
+  const database = decodeURIComponent(urlObj.pathname.slice(1)) || 'test';
+  let finalSql = sql;
+  if (args && args.length > 0) {
+    args.forEach(arg => {
+      const val = typeof arg === 'string' ? "'" + arg.replace(/'/g, "\\'") + "'" : String(arg);
+      finalSql = finalSql.replace('?', val);
+    });
+  }
+  const endpoint = 'https://http-' + host + '/v1beta/sql';
+  const auth = btoa(username + ':' + password);
+  const resp = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Basic ' + auth,
+      'TiDB-Database': database
+    },
+    body: JSON.stringify({ query: finalSql })
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ message: resp.statusText }));
+    throw new Error('TiDB错误: ' + (err.message || resp.status));
+  }
+  const data = await resp.json();
+  return data;
+}
+
 // 统一CORS响应头
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -218,19 +253,31 @@ addEventListener("fetch",t=>{t.respondWith(async function(t){
     }
   }
 
-  // KV附件下载路由（公开访问，无需鉴权）
+  // 查询文章附件列表（公开API）
+  if(method==="GET" && path.startsWith("/api/attachments/")){
+    try{
+      const articleId=path.split("/")[3];
+      if(!articleId) return new Response(JSON.stringify([]),{headers:CORS_HEADERS,status:200});
+      const result=await tidbQuery("SELECT id,filename,content_type,created_at FROM uploads WHERE article_id=?",[articleId]);
+      const files=(result.rows||[]).map(function(r){return{id:r.id,filename:r.filename,type:r.content_type,url:"/admin/file/FILE_"+r.id}});
+      return new Response(JSON.stringify(files),{headers:CORS_HEADERS,status:200});
+    }catch(err){
+      return new Response(JSON.stringify([]),{headers:CORS_HEADERS,status:200});
+    }
+  }
+
+  // TiDB附件下载路由（公开访问，无需鉴权）
   if(method==="GET" && path.startsWith("/admin/file/")){
     try{
-      const fileId=path.replace("/admin/file/","");
-      const raw=await CFBLOG.get(fileId);
-      if(!raw) return new Response("Not Found",{status:404});
-      const obj=JSON.parse(raw);
-      if(!obj.data) return new Response("Not Found",{status:404});
-      const binary=atob(obj.data);
-      const bytes=new Uint8Array(binary.length);
-      for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+      const fileParam=path.replace("/admin/file/","");
+      const fileId=parseInt(fileParam.replace("FILE_",""));
+      if(isNaN(fileId)) return new Response("Not Found",{status:404});
+      const result=await tidbQuery("SELECT filename,content_type,data FROM uploads WHERE id=?",[String(fileId)]);
+      if(!result.rows||result.rows.length===0) return new Response("Not Found",{status:404});
+      const row=result.rows[0];
+      const bytes=new Uint8Array(row.data);
       const headers=new Headers();
-      headers.set("Content-Type",obj.type||"application/octet-stream");
+      headers.set("Content-Type",row.content_type||"application/octet-stream");
       headers.set("Cache-Control","public, max-age=86400");
       return new Response(bytes,{headers,status:200});
     }catch(err){
@@ -243,28 +290,21 @@ addEventListener("fetch",t=>{t.respondWith(async function(t){
   let i=r.pathname.trim("/").split("/");
   if(("admin"===i[0]||!0===OPT.privateBlog)&&!function(t){const e=t.headers.get("Authorization");if(!e||!/^Basic [A-Za-z0-9._~+/-]+=*$/i.test(e))return!1;const[r,n]=function(t){try{return atob(t.split(" ").pop()).split(":")}catch(t){return[]}}(e);return console.log("-----parseBasicAuth----- ",r,n),r===OPT.user&&n===OPT.password}(t.request))return new Response("Unauthorized",{headers:{"WWW-Authenticate":'Basic realm="cfblog"',"Access-Control-Allow-Origin":"*"},status:401});
   
-  // KV附件上传接口（已通过admin鉴权）
+  // TiDB附件上传接口（已通过admin鉴权）
   if(method==="POST" && path==="/admin/upload"){
     try{
       const formData=await e.formData();
       const file=formData.get("file");
+      const articleId=formData.get("articleId")||"";
       if(!file) throw new Error("未选择文件");
       if(file.size>20*1024*1024) throw new Error("文件不能超过20MB");
-      const ext=file.name.split(".").pop();
-      const fileId="FILE_"+Date.now()+"-"+Math.random().toString(36).substring(2,8)+"."+ext;
       const arrayBuf=await file.arrayBuffer();
       const uint8=new Uint8Array(arrayBuf);
-      let binary="";
-      for(let i=0;i<uint8.length;i++) binary+=String.fromCharCode(uint8[i]);
-      const base64=btoa(binary);
-      await CFBLOG.put(fileId,JSON.stringify({
-        name:file.name,
-        type:file.type||"application/octet-stream",
-        size:file.size,
-        data:base64
-      }));
-      const publicURL="/admin/file/"+fileId;
-      return new Response(JSON.stringify({ok:1,url:publicURL,key:fileId,name:file.name}),{headers:CORS_HEADERS,status:200});
+      const hexData=Array.from(uint8).map(b=>('0'+b.toString(16)).slice(-2)).join('');
+      const result=await tidbQuery("INSERT INTO uploads (filename,content_type,data,article_id) VALUES (?,?,UNHEX(?),?)",[file.name,file.type||"application/octet-stream",hexData,articleId]);
+      const insertId=result.sLastInsertID||result.lastInsertId;
+      const publicURL="/admin/file/FILE_"+insertId;
+      return new Response(JSON.stringify({ok:1,url:publicURL,key:"FILE_"+insertId,name:file.name}),{headers:CORS_HEADERS,status:200});
     }catch(err){
       return new Response(JSON.stringify({ok:0,msg:err.message}),{headers:CORS_HEADERS,status:400});
     }

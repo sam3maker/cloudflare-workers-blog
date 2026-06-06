@@ -184,6 +184,8 @@
         statusEl.textContent='上传中...';
         var fd=new FormData();
         fd.append('file',file);
+        var articleId=document.getElementById('id')?document.getElementById('id').value:'';
+        if(articleId)fd.append('articleId',articleId);
         var xhr=new XMLHttpRequest();
         xhr.open('POST','/admin/upload');
         xhr.onload=function(){
