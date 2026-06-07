@@ -108,10 +108,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/editor.md@1.5.0/editormd.js"></script>   
 <script type="text/javascript">
+	var articleId = window.location.pathname.replace(/\/+$/,'').split('/').pop();
+	var articleJson = null;
+	var categoryJson = null;
+	$.ajax({
+		url: '/api/article/' + articleId,
+		async: false,
+		dataType: 'json',
+		success: function(d) { articleJson = d; }
+	});
+	$.ajax({
+		url: '/api/categories',
+		async: false,
+		dataType: 'json',
+		success: function(d) { categoryJson = d; }
+	});
 	$(function() {
 		$('#myTab li:eq(0) a').tab('show');
-		var articleJson = JSON.parse('<!--{articleJson}-->');
-		var categoryJson = JSON.parse('<!--{categoryJson}-->');
 
 		
 		var mdEditor = editormd("content", {

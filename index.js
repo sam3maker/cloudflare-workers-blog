@@ -261,6 +261,31 @@ addEventListener("fetch",t=>{t.respondWith(async function(t){
     }
   }
 
+  // 获取单篇文章数据API（admin用）
+  if(method==="GET" && path.startsWith("/api/article/")){
+    try{
+      const aid=path.split("/")[3];
+      if(!aid) return new Response(JSON.stringify(null),{headers:CORS_HEADERS,status:400});
+      let raw=await CFBLOG.get(aid);
+      if(!raw) return new Response(JSON.stringify(null),{headers:CORS_HEADERS,status:404});
+      let article=JSON.parse(raw);
+      return new Response(JSON.stringify(article),{headers:CORS_HEADERS,status:200});
+    }catch(err){
+      return new Response(JSON.stringify(null),{headers:CORS_HEADERS,status:500});
+    }
+  }
+
+  // 获取分类列表API（admin用）
+  if(method==="GET" && path==="/api/categories"){
+    try{
+      let raw=await CFBLOG.get("SYSTEM_VALUE_WidgetCategory");
+      let data=raw?JSON.parse(raw):[];
+      return new Response(JSON.stringify(data),{headers:CORS_HEADERS,status:200});
+    }catch(err){
+      return new Response(JSON.stringify([]),{headers:CORS_HEADERS,status:500});
+    }
+  }
+
   // 查询文章附件列表（公开API）
   if(method==="GET" && path.startsWith("/api/attachments/")){
     try{
