@@ -216,7 +216,8 @@ category.selectpicker('val',articleJson.category);
                         statusEl.textContent='上传成功!';
                         var url=resp.url;
                         var listEl=document.getElementById('cf-upload-list');
-                        listEl.innerHTML+='<div style="padding:5px 0;border-bottom:1px solid #eee;font-size:13px;"><strong>'+file.name+'</strong><br><code style="word-break:break-all;font-size:12px;">'+url+'</code><br><a href="javascript:void(0)" onclick="cfInsertMD(\'![ '+file.name+']('+url+')\')">插入为图片</a> | <a href="javascript:void(0)" onclick="cfInsertMD(\'['+file.name+']('+url+')\')">插入为链接</a> | <button onclick="navigator.clipboard.writeText(\''+url+'\');this.textContent=\'已复制\'" style="font-size:12px;">复制URL</button> | <button onclick="cfDeleteAttachment('+resp.key.replace(\'FILE_\',\'\')+',this.parentElement.parentElement)" style="font-size:12px;color:red;border:none;background:none;cursor:pointer;">删除</button></div>';
+                        var fileId=resp.key.replace("FILE_","");
+                        listEl.innerHTML+='<div style="padding:5px 0;border-bottom:1px solid #eee;font-size:13px;"><strong>'+file.name+'</strong><br><code style="word-break:break-all;font-size:12px;">'+url+'</code><br><a href="javascript:void(0)" onclick="cfInsertMD(\'![ '+file.name+']('+url+')\')">插入为图片</a> | <a href="javascript:void(0)" onclick="cfInsertMD(\'['+file.name+']('+url+')\')">插入为链接</a> | <button onclick="navigator.clipboard.writeText(\''+url+'\');this.textContent=\'已复制\'" style="font-size:12px;">复制URL</button> | <button onclick="cfDeleteAttachment('+fileId+',this.parentElement.parentElement)" style="font-size:12px;color:red;border:none;background:none;cursor:pointer;">删除</button></div>';
                     }else{
                         statusEl.textContent='上传失败: '+(resp.msg||'未知错误');
                     }
