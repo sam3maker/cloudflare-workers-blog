@@ -110,10 +110,8 @@
 <script type="text/javascript">
 	$(function() {
 		$('#myTab li:eq(0) a').tab('show');
-		//获取文章
-		var articleJson = <!--{articleJson}-->;
-		//获取分类
-		var categoryJson = <!--{categoryJson}-->;
+		var articleJson = JSON.parse('<!--{articleJson}-->');
+		var categoryJson = JSON.parse('<!--{categoryJson}-->');
 
 		
 		var mdEditor = editormd("content", {
